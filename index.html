@@ -1,0 +1,1752 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Трекер цикла</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23d8cff5'/%3E%3Cstop offset='100%25' stop-color='%23f5d6e8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M108 52a46 46 0 1 0 0 76 36 36 0 1 1 0-76z' fill='%239478d0' opacity='0.9'/%3E%3Ccircle cx='118' cy='72' r='5' fill='%23c4b5e8' opacity='0.6'/%3E%3Ccircle cx='126' cy='88' r='3' fill='%23c4b5e8' opacity='0.4'/%3E%3C/svg%3E">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --lavender: #c4b5e8;
+    --lavender-light: #ede8f9;
+    --lavender-deep: #9478d0;
+    --lavender-text: #4a3580;
+    --pink: #f0b8cc;
+    --pink-light: #fce8f0;
+    --pink-deep: #d4789a;
+    --pink-text: #7a3055;
+    --blue: #b8d4f0;
+    --blue-light: #e4eef9;
+    --blue-deep: #6aa0cc;
+    --blue-text: #2a5080;
+    --cream: #faf8fc;
+    --surface: #ffffff;
+    --border: rgba(180, 160, 220, 0.25);
+    --border-med: rgba(180, 160, 220, 0.45);
+    --text: #2e2640;
+    --text-mid: #6b5e82;
+    --text-muted: #9b8fac;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .app { max-width: 480px; margin: 0 auto; padding: 0 0 100px; }
+
+  /* header */
+  .header {
+    background: linear-gradient(160deg, #e8dff8 0%, #f5e0ec 55%, #ddeaf8 100%);
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px;
+    font-weight: 400;
+    color: var(--lavender-text);
+    letter-spacing: 0.01em;
+  }
+  .header .subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .phase-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .phase-badge.menstrual { background: var(--pink-light); color: var(--pink-text); }
+  .phase-badge.follicular { background: var(--blue-light); color: var(--blue-text); }
+  .phase-badge.ovulation { background: #fff3d4; color: #7a5a10; }
+  .phase-badge.luteal { background: var(--lavender-light); color: var(--lavender-text); }
+  .phase-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+  }
+  .phase-badge.menstrual .phase-dot { background: var(--pink-deep); }
+  .phase-badge.follicular .phase-dot { background: var(--blue-deep); }
+  .phase-badge.ovulation .phase-dot { background: #d4a020; }
+  .phase-badge.luteal .phase-dot { background: var(--lavender-deep); }
+
+  /* nav */
+  .nav {
+    position: fixed;
+    bottom: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 100%; max-width: 480px;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 100;
+  }
+  .nav-btn {
+    flex: 1;
+    padding: 12px 4px 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    color: var(--text-muted);
+    transition: color 0.2s;
+  }
+  .nav-btn.active { color: var(--lavender-deep); }
+  .nav-btn svg { width: 20px; height: 20px; }
+
+  /* content sections */
+  .section { display: none; padding: 16px; }
+  .section.active { display: block; }
+
+  /* cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .card-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--lavender-text);
+    margin-bottom: 12px;
+  }
+
+  /* today quick log */
+  .today-date {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .today-date strong { color: var(--text); font-weight: 500; }
+
+  /* flow intensity */
+  .flow-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .flow-btn {
+    flex: 1;
+    height: 40px;
+    border: 1.5px solid var(--border-med);
+    border-radius: var(--radius-sm);
+    background: none;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text-mid);
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .flow-btn .flow-label { font-size: 10px; color: var(--text-muted); }
+  .flow-btn.active-flow {
+    background: var(--pink-light);
+    border-color: var(--pink-deep);
+    color: var(--pink-text);
+  }
+  .flow-btn.active-flow .flow-label { color: var(--pink-text); }
+
+  /* symptom chips */
+  .chips-group { margin-bottom: 14px; }
+  .chips-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 7px;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chip {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border-med);
+    background: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    color: var(--text-mid);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .chip.active { border-width: 1.5px; font-weight: 500; }
+  .chip.pain.active { background: #fce8ec; border-color: #d4789a; color: #7a3055; }
+  .chip.mood.active { background: var(--lavender-light); border-color: var(--lavender-deep); color: var(--lavender-text); }
+  .chip.physical.active { background: var(--blue-light); border-color: var(--blue-deep); color: var(--blue-text); }
+  .chip.discharge.active { background: #eef6ee; border-color: #60a060; color: #2a5a2a; }
+
+  /* pain intensity slider */
+  .slider-group { margin: 10px 0; }
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .slider-name {
+    font-size: 12px;
+    color: var(--text-mid);
+    width: 70px;
+    flex-shrink: 0;
+  }
+  .slider-val {
+    font-size: 12px;
+    color: var(--lavender-text);
+    width: 16px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(to right, var(--lavender-deep) 0%, var(--lavender-deep) var(--pct, 0%), var(--lavender-light) var(--pct, 0%), var(--lavender-light) 100%);
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--lavender-deep);
+    cursor: pointer;
+  }
+
+  /* mood selector */
+  .mood-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .mood-btn {
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border-med);
+    background: none;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text-mid);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .mood-btn.active {
+    background: var(--lavender-light);
+    border-color: var(--lavender-deep);
+    color: var(--lavender-text);
+    font-weight: 500;
+  }
+
+  /* energy / sleep */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .mini-card {
+    background: var(--cream);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+  }
+  .mini-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .stars {
+    display: flex;
+    gap: 4px;
+  }
+  .star {
+    font-size: 18px;
+    cursor: pointer;
+    color: #d8d0e8;
+    transition: color 0.1s;
+    line-height: 1;
+  }
+  .star.on { color: var(--lavender-deep); }
+
+  /* notes */
+  textarea {
+    width: 100%;
+    border: 1px solid var(--border-med);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--cream);
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  textarea:focus { border-color: var(--lavender-deep); }
+
+  /* save btn */
+  .save-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #9478d0, #c07aaa);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 4px;
+    letter-spacing: 0.02em;
+    transition: opacity 0.2s;
+  }
+  .save-btn:hover { opacity: 0.9; }
+  .save-btn:active { opacity: 0.8; }
+
+  /* calendar */
+  .cal-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .cal-nav button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--lavender-text);
+    font-size: 18px;
+    padding: 4px 8px;
+  }
+  .cal-month {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--lavender-text);
+  }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .cal-weekday {
+    text-align: center;
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding-bottom: 6px;
+  }
+  .cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--text-mid);
+    position: relative;
+    transition: background 0.15s;
+  }
+  .cal-day:hover { background: var(--lavender-light); }
+  .cal-day.empty { cursor: default; }
+  .cal-day.empty:hover { background: none; }
+  .cal-day.today { font-weight: 500; color: var(--lavender-text); }
+  .cal-day.today::after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--lavender-deep);
+  }
+  .cal-day.has-period { background: var(--pink-light); color: var(--pink-text); }
+  .cal-day.has-period:hover { background: var(--pink); }
+  .cal-day.predicted { background: #fce8ec; color: #c06080; opacity: 0.5; }
+  .cal-day.ovulation-day { background: #fff8e0; color: #8a6010; }
+  .cal-day.has-symptoms::before {
+    content: '';
+    position: absolute;
+    top: 3px; right: 3px;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--blue-deep);
+  }
+
+  /* legend */
+  .cal-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* stats */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    text-align: center;
+  }
+  .stat-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--lavender-text);
+    line-height: 1;
+  }
+  .stat-unit { font-size: 11px; color: var(--text-muted); }
+  .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  /* forecast card */
+  .forecast-card {
+    background: linear-gradient(135deg, var(--lavender-light), var(--pink-light));
+    border: 1px solid rgba(180,140,200,0.3);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .forecast-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .forecast-row:last-child { margin-bottom: 0; }
+  .forecast-label {
+    font-size: 12px;
+    color: var(--text-mid);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .forecast-label .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .forecast-val {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--lavender-text);
+  }
+  .forecast-days {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+
+  /* history list */
+  .history-list { margin-bottom: 12px; }
+  .history-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .history-item:hover { border-color: var(--border-med); }
+  .history-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .history-date {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .history-flow {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--pink-light);
+    color: var(--pink-text);
+  }
+  .history-symptoms {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .history-expanded {
+    display: none;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-mid);
+  }
+  .history-item.open .history-expanded { display: block; }
+
+  /* pattern chart */
+  .pattern-bar-wrap {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 60px;
+    margin-top: 8px;
+  }
+  .pattern-bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    height: 100%;
+    justify-content: flex-end;
+  }
+  .pattern-bar {
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+    min-height: 2px;
+    transition: height 0.3s;
+  }
+  .pattern-bar-label {
+    font-size: 9px;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1;
+  }
+
+  /* export */
+  .export-btn {
+    width: 100%;
+    padding: 13px;
+    border: 1.5px solid var(--lavender-deep);
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--lavender-text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .export-btn:hover { background: var(--lavender-light); }
+
+  /* toast */
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: #2e2640;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 200;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* section title */
+  .section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-weight: 400;
+    color: var(--lavender-text);
+    padding: 16px 16px 4px;
+  }
+
+  /* medicine chip */
+  .medicine-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .medicine-row:last-child { border-bottom: none; }
+  .medicine-name { font-size: 13px; color: var(--text); flex: 1; }
+  .medicine-toggle {
+    width: 36px; height: 20px;
+    border-radius: 10px;
+    background: var(--border-med);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    border: none;
+    flex-shrink: 0;
+  }
+  .medicine-toggle.on { background: var(--lavender-deep); }
+  .medicine-toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: white;
+    transition: left 0.2s;
+  }
+  .medicine-toggle.on::after { left: 18px; }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .empty-icon {
+    font-size: 32px;
+    display: block;
+    margin-bottom: 10px;
+    opacity: 0.5;
+  }
+
+  @media (max-width: 360px) {
+    .two-col { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: 1fr; }
+  }
+
+  /* backup banner */
+  .backup-banner {
+    display: none;
+    margin: 12px 16px 0;
+    background: linear-gradient(135deg, #f0eafc, #fce8f0);
+    border: 1.5px solid rgba(180,130,200,0.4);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .backup-banner.visible { display: block; }
+  .backup-banner-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--lavender-text);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .backup-banner-title .bell {
+    font-size: 15px;
+  }
+  .backup-banner-text {
+    font-size: 12px;
+    color: var(--text-mid);
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+  .backup-banner-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .backup-btn-export {
+    flex: 1;
+    padding: 9px 12px;
+    background: linear-gradient(135deg, #9478d0, #c07aaa);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .backup-btn-export:hover { opacity: 0.9; }
+  .backup-btn-done {
+    padding: 9px 14px;
+    background: none;
+    border: 1px solid rgba(180,130,200,0.5);
+    border-radius: var(--radius-sm);
+    color: var(--lavender-text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+  .backup-btn-done:hover { background: var(--lavender-light); }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <h1>Трекер цикла</h1>
+    <div class="subtitle" id="header-subtitle">Загрузка...</div>
+    <div id="phase-badge" class="phase-badge follicular" style="margin-top:12px">
+      <div class="phase-dot"></div>
+      <span id="phase-text">Фолликулярная фаза</span>
+    </div>
+  </div>
+
+  <!-- Backup reminder banner -->
+  <div class="backup-banner" id="backup-banner">
+    <div class="backup-banner-title">
+      <span class="bell">🔔</span> Время сделать резервную копию
+    </div>
+    <div class="backup-banner-text">
+      Начало месяца — хороший момент сохранить данные на всякий случай. Экспортируй JSON и убери в надёжное место.
+    </div>
+    <div class="backup-banner-actions">
+      <button class="backup-btn-export" onclick="exportAndDismiss()">Экспортировать сейчас</button>
+      <button class="backup-btn-done" onclick="dismissBackup()">Уже сохранила</button>
+    </div>
+  </div>
+
+  <!-- Countdown card -->
+  <div id="countdown-card" style="margin:12px 16px 0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;display:flex;align-items:center;gap:14px">
+    <div id="countdown-ring" style="flex-shrink:0">
+      <svg width="56" height="56" viewBox="0 0 56 56">
+        <circle cx="28" cy="28" r="23" fill="none" stroke="var(--lavender-light)" stroke-width="4"/>
+        <circle id="countdown-arc" cx="28" cy="28" r="23" fill="none" stroke="var(--lavender-deep)" stroke-width="4"
+          stroke-linecap="round" stroke-dasharray="144.51" stroke-dashoffset="144.51"
+          transform="rotate(-90 28 28)" style="transition:stroke-dashoffset 0.6s ease"/>
+        <text x="28" y="33" text-anchor="middle" font-family="Cormorant Garamond,serif" font-size="15" fill="#4a3580" id="countdown-num">—</text>
+      </svg>
+    </div>
+    <div style="flex:1;min-width:0">
+      <div id="countdown-label" style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px">Загрузка…</div>
+      <div id="countdown-sub" style="font-size:12px;color:var(--text-muted);line-height:1.4"></div>
+    </div>
+  </div>
+
+  <!-- TODAY -->
+  <div class="section active" id="sec-today">
+    <div class="card" style="margin-top:16px">
+      <div class="today-date">Сегодня — <strong id="today-str"></strong></div>
+
+      <!-- Flow -->
+      <div class="chips-label">Выделения</div>
+      <div class="flow-row" id="flow-row">
+        <button class="flow-btn" data-flow="0" onclick="setFlow(0)">
+          <span>—</span><span class="flow-label">нет</span>
+        </button>
+        <button class="flow-btn" data-flow="1" onclick="setFlow(1)">
+          <span>●</span><span class="flow-label">скудные</span>
+        </button>
+        <button class="flow-btn" data-flow="2" onclick="setFlow(2)">
+          <span>●●</span><span class="flow-label">умеренные</span>
+        </button>
+        <button class="flow-btn" data-flow="3" onclick="setFlow(3)">
+          <span>●●●</span><span class="flow-label">обильные</span>
+        </button>
+        <button class="flow-btn" data-flow="4" onclick="setFlow(4)">
+          <span>●●●●</span><span class="flow-label">очень</span>
+        </button>
+      </div>
+
+      <!-- Discharge (non-menstrual) -->
+      <div class="chips-group">
+        <div class="chips-label">Бели / выделения вне менструации</div>
+        <div class="chips" id="chips-discharge">
+          <button class="chip discharge" data-key="discharge-dry" onclick="toggleChip(this)">Сухость</button>
+          <button class="chip discharge" data-key="discharge-sticky" onclick="toggleChip(this)">Липкие</button>
+          <button class="chip discharge" data-key="discharge-creamy" onclick="toggleChip(this)">Кремообразные</button>
+          <button class="chip discharge" data-key="discharge-watery" onclick="toggleChip(this)">Водянистые</button>
+          <button class="chip discharge" data-key="discharge-egg" onclick="toggleChip(this)">Яичный белок</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pain -->
+    <div class="card">
+      <div class="card-title">Боль</div>
+      <div class="slider-group">
+        <div class="slider-row">
+          <span class="slider-name">Спазмы</span>
+          <input type="range" min="0" max="5" value="0" step="1" id="pain-cramps" oninput="updateSlider(this,'cramps')">
+          <span class="slider-val" id="val-cramps">0</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-name">Голова</span>
+          <input type="range" min="0" max="5" value="0" step="1" id="pain-head" oninput="updateSlider(this,'head')">
+          <span class="slider-val" id="val-head">0</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-name">Грудь</span>
+          <input type="range" min="0" max="5" value="0" step="1" id="pain-breast" oninput="updateSlider(this,'breast')">
+          <span class="slider-val" id="val-breast">0</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-name">Спина</span>
+          <input type="range" min="0" max="5" value="0" step="1" id="pain-back" oninput="updateSlider(this,'back')">
+          <span class="slider-val" id="val-back">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mood & Energy -->
+    <div class="card">
+      <div class="card-title">Настроение</div>
+      <div class="mood-row" id="mood-row">
+        <button class="mood-btn" data-mood="great" onclick="setMood(this)">Отлично</button>
+        <button class="mood-btn" data-mood="calm" onclick="setMood(this)">Спокойно</button>
+        <button class="mood-btn" data-mood="anxious" onclick="setMood(this)">Тревожно</button>
+        <button class="mood-btn" data-mood="sad" onclick="setMood(this)">Грустно</button>
+        <button class="mood-btn" data-mood="irritable" onclick="setMood(this)">Раздражение</button>
+        <button class="mood-btn" data-mood="sensitive" onclick="setMood(this)">Чувствительно</button>
+        <button class="mood-btn" data-mood="low" onclick="setMood(this)">Упадок сил</button>
+      </div>
+      <div class="two-col" style="margin-top:14px">
+        <div class="mini-card">
+          <div class="mini-label">Энергия</div>
+          <div class="stars" id="stars-energy" data-key="energy">
+            <span class="star" onclick="setStar('energy',1)">★</span>
+            <span class="star" onclick="setStar('energy',2)">★</span>
+            <span class="star" onclick="setStar('energy',3)">★</span>
+            <span class="star" onclick="setStar('energy',4)">★</span>
+            <span class="star" onclick="setStar('energy',5)">★</span>
+          </div>
+        </div>
+        <div class="mini-card">
+          <div class="mini-label">Сон (часов)</div>
+          <div class="stars" id="stars-sleep" data-key="sleep">
+            <span class="star" onclick="setStar('sleep',1)">★</span>
+            <span class="star" onclick="setStar('sleep',2)">★</span>
+            <span class="star" onclick="setStar('sleep',3)">★</span>
+            <span class="star" onclick="setStar('sleep',4)">★</span>
+            <span class="star" onclick="setStar('sleep',5)">★</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Physical symptoms -->
+    <div class="card">
+      <div class="card-title">Самочувствие</div>
+      <div class="chips-group">
+        <div class="chips-label">Физическое</div>
+        <div class="chips">
+          <button class="chip physical" data-key="acne" onclick="toggleChip(this)">Акне</button>
+          <button class="chip physical" data-key="bloating" onclick="toggleChip(this)">Вздутие</button>
+          <button class="chip physical" data-key="swelling" onclick="toggleChip(this)">Отёки</button>
+          <button class="chip physical" data-key="nausea" onclick="toggleChip(this)">Тошнота</button>
+          <button class="chip physical" data-key="fatigue" onclick="toggleChip(this)">Усталость</button>
+          <button class="chip physical" data-key="craving" onclick="toggleChip(this)">Тяга к еде</button>
+          <button class="chip physical" data-key="hot-flash" onclick="toggleChip(this)">Приливы</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Medicine -->
+    <div class="card">
+      <div class="card-title">Лекарства и добавки</div>
+      <div id="medicine-list">
+        <div class="medicine-row">
+          <span class="medicine-name">Антидепрессант</span>
+          <button class="medicine-toggle" id="med-antidep" onclick="toggleMed('antidep')"></button>
+        </div>
+        <div class="medicine-row">
+          <span class="medicine-name">Обезболивающее</span>
+          <button class="medicine-toggle" id="med-painkiller" onclick="toggleMed('painkiller')"></button>
+        </div>
+        <div class="medicine-row">
+          <span class="medicine-name">Витамины / добавки</span>
+          <button class="medicine-toggle" id="med-vitamins" onclick="toggleMed('vitamins')"></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="card">
+      <div class="card-title">Заметки</div>
+      <textarea id="notes" rows="3" placeholder="Что ещё хочется отметить…"></textarea>
+    </div>
+
+    <div style="padding: 0 0 8px;">
+      <button class="save-btn" onclick="saveDay()">Сохранить день</button>
+    </div>
+  </div>
+
+  <!-- CALENDAR -->
+  <div class="section" id="sec-calendar">
+    <div class="section-title">Календарь</div>
+    <div class="card">
+      <div class="cal-nav">
+        <button onclick="calPrev()">‹</button>
+        <div class="cal-month" id="cal-month-label"></div>
+        <button onclick="calNext()">›</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="cal-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#f0b8cc"></div>Менструация</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fff8e0"></div>Овуляция</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fce8ec;opacity:0.5"></div>Прогноз</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#6aa0cc"></div>Симптомы</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS -->
+  <div class="section" id="sec-stats">
+    <div class="section-title">Аналитика</div>
+
+    <div class="forecast-card">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em">Прогноз</div>
+      <div class="forecast-row">
+        <div class="forecast-label">
+          <div class="dot" style="background:#d4789a"></div>
+          Следующий цикл
+        </div>
+        <div class="forecast-val">
+          <span id="next-period-date">—</span>
+          <span class="forecast-days" id="next-period-days"></span>
+        </div>
+      </div>
+      <div class="forecast-row">
+        <div class="forecast-label">
+          <div class="dot" style="background:#d4a020"></div>
+          Овуляция
+        </div>
+        <div class="forecast-val">
+          <span id="next-ovulation-date">—</span>
+          <span class="forecast-days" id="next-ovulation-days"></span>
+        </div>
+      </div>
+      <div class="forecast-row">
+        <div class="forecast-label">
+          <div class="dot" style="background:#9478d0"></div>
+          Фертильное окно
+        </div>
+        <div class="forecast-val" id="fertile-window">—</div>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-num" id="avg-cycle">—</div>
+        <div class="stat-unit">дней</div>
+        <div class="stat-label">Средний цикл</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="avg-period">—</div>
+        <div class="stat-unit">дней</div>
+        <div class="stat-label">Длина менструации</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="cycles-tracked">0</div>
+        <div class="stat-unit">цикл(ов)</div>
+        <div class="stat-label">Отслежено</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="regularity">—</div>
+        <div class="stat-unit"></div>
+        <div class="stat-label">Регулярность</div>
+      </div>
+    </div>
+
+    <!-- Symptom pattern chart -->
+    <div class="card">
+      <div class="card-title">Симптомы по фазам</div>
+      <div id="pattern-chart"></div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:10px">Среднее количество симптомов за каждую фазу цикла</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">История циклов</div>
+      <div id="history-list">
+        <div class="empty-state">
+          <span class="empty-icon">🌸</span>
+          Записей пока нет. Отмечайте дни — здесь появится история.
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="export-btn" style="flex:1;margin-top:0" onclick="exportData()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M2 10v4h12v-4M8 2v8M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Экспорт
+      </button>
+      <button class="export-btn" style="flex:1;margin-top:0" onclick="triggerImport()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M2 10v4h12v-4M8 10V2M5 5l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Импорт
+      </button>
+    </div>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+
+    <!-- Import confirm modal -->
+    <div id="import-modal" style="display:none;position:fixed;inset:0;background:rgba(46,38,64,0.45);z-index:300;align-items:center;justify-content:center">
+      <div style="background:var(--surface);border-radius:var(--radius);padding:24px;margin:0 20px;max-width:360px;width:100%">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--lavender-text);margin-bottom:10px">Импорт данных</div>
+        <div style="font-size:13px;color:var(--text-mid);margin-bottom:6px" id="import-info"></div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:20px">Текущие данные будут заменены данными из файла. Это действие нельзя отменить.</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="confirmImport()" style="flex:1;padding:11px;background:linear-gradient(135deg,#9478d0,#c07aaa);border:none;border-radius:var(--radius-sm);color:white;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer">Заменить</button>
+          <button onclick="cancelImport()" style="flex:1;padding:11px;background:none;border:1px solid var(--border-med);border-radius:var(--radius-sm);color:var(--lavender-text);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer">Отмена</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Nav -->
+<nav class="nav">
+  <button class="nav-btn active" id="nav-today" onclick="showSection('today')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+    Сегодня
+  </button>
+  <button class="nav-btn" id="nav-calendar" onclick="showSection('calendar')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+    Календарь
+  </button>
+  <button class="nav-btn" id="nav-stats" onclick="showSection('stats')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+    </svg>
+    Аналитика
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ────────────────────────────────────────────────────
+const STORAGE_KEY = 'period_tracker_v1';
+let state = { days: {}, settings: { avgCycle: 28 } };
+
+function load() {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (s) state = JSON.parse(s);
+  } catch(e) {}
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+// ── DATE UTILS ───────────────────────────────────────────────
+function dateKey(d) {
+  return d.toISOString().split('T')[0];
+}
+function today() { return new Date(); }
+function todayKey() { return dateKey(today()); }
+
+function addDays(d, n) {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+
+function formatDate(d) {
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+}
+
+function diffDays(a, b) {
+  return Math.round((b - a) / 86400000);
+}
+
+// ── TODAY ENTRY ──────────────────────────────────────────────
+let todayEntry = {};
+const sliderVals = { cramps: 0, head: 0, breast: 0, back: 0 };
+let selectedMeds = {};
+
+function initTodayForm() {
+  const key = todayKey();
+  const existing = state.days[key] || {};
+  todayEntry = Object.assign({}, existing);
+
+  // date
+  document.getElementById('today-str').textContent = formatDate(today());
+
+  // flow
+  const flow = todayEntry.flow || 0;
+  setFlowUI(flow);
+
+  // sliders
+  ['cramps','head','breast','back'].forEach(k => {
+    const val = (todayEntry.pain || {})[k] || 0;
+    sliderVals[k] = val;
+    const el = document.getElementById('pain-'+k);
+    if (el) { el.value = val; updateSliderUI(el, k); }
+    const lbl = document.getElementById('val-'+k);
+    if (lbl) lbl.textContent = val;
+  });
+
+  // chips
+  document.querySelectorAll('.chip').forEach(c => {
+    const key = c.dataset.key;
+    c.classList.toggle('active', !!(todayEntry.chips || {})[key]);
+  });
+
+  // mood
+  document.querySelectorAll('.mood-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mood === todayEntry.mood);
+  });
+
+  // stars
+  setStar('energy', (todayEntry.energy || 0), false);
+  setStar('sleep', (todayEntry.sleep || 0), false);
+
+  // meds
+  selectedMeds = Object.assign({}, todayEntry.meds || {});
+  ['antidep','painkiller','vitamins'].forEach(m => {
+    const el = document.getElementById('med-'+m);
+    if (el) el.classList.toggle('on', !!selectedMeds[m]);
+  });
+
+  // notes
+  document.getElementById('notes').value = todayEntry.notes || '';
+
+  // phase
+  updatePhaseHeader();
+}
+
+function setFlow(val) {
+  todayEntry.flow = val;
+  setFlowUI(val);
+}
+
+function setFlowUI(val) {
+  document.querySelectorAll('.flow-btn').forEach(b => {
+    b.classList.toggle('active-flow', parseInt(b.dataset.flow) === val);
+  });
+}
+
+function updateSlider(el, key) {
+  sliderVals[key] = parseInt(el.value);
+  updateSliderUI(el, key);
+  document.getElementById('val-'+key).textContent = el.value;
+}
+
+function updateSliderUI(el, key) {
+  const pct = (parseInt(el.value) / 5 * 100) + '%';
+  el.style.setProperty('--pct', pct);
+}
+
+function toggleChip(btn) {
+  btn.classList.toggle('active');
+  if (!todayEntry.chips) todayEntry.chips = {};
+  todayEntry.chips[btn.dataset.key] = btn.classList.contains('active');
+}
+
+function setMood(btn) {
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  todayEntry.mood = btn.dataset.mood;
+}
+
+const starState = { energy: 0, sleep: 0 };
+function setStar(key, val, fromClick = true) {
+  if (fromClick) {
+    starState[key] = val;
+    todayEntry[key] = val;
+  } else {
+    starState[key] = val;
+  }
+  document.querySelectorAll('#stars-'+key+' .star').forEach((s, i) => {
+    s.classList.toggle('on', i < val);
+  });
+}
+
+function toggleMed(key) {
+  selectedMeds[key] = !selectedMeds[key];
+  const el = document.getElementById('med-'+key);
+  if (el) el.classList.toggle('on', !!selectedMeds[key]);
+}
+
+function saveDay() {
+  const key = todayKey();
+  const entry = {
+    date: key,
+    flow: todayEntry.flow || 0,
+    pain: { cramps: sliderVals.cramps, head: sliderVals.head, breast: sliderVals.breast, back: sliderVals.back },
+    chips: todayEntry.chips || {},
+    mood: todayEntry.mood || null,
+    energy: starState.energy,
+    sleep: starState.sleep,
+    meds: Object.assign({}, selectedMeds),
+    notes: document.getElementById('notes').value.trim()
+  };
+  state.days[key] = entry;
+  save();
+  showToast('День сохранён ✓');
+  updatePhaseHeader();
+  renderCountdown();
+  renderCalendar();
+  renderStats();
+}
+
+// ── PHASE CALCULATION ────────────────────────────────────────
+function getPeriodDays() {
+  return Object.keys(state.days)
+    .filter(k => (state.days[k].flow || 0) > 0)
+    .sort();
+}
+
+function getCycles() {
+  const pDays = getPeriodDays();
+  if (pDays.length === 0) return [];
+  const cycles = [];
+  let start = pDays[0];
+  let prev = pDays[0];
+  for (let i = 1; i < pDays.length; i++) {
+    const d = new Date(pDays[i]);
+    const p = new Date(prev);
+    if (diffDays(p, d) > 3) {
+      cycles.push({ start: new Date(start), end: new Date(prev) });
+      start = pDays[i];
+    }
+    prev = pDays[i];
+  }
+  cycles.push({ start: new Date(start), end: new Date(prev) });
+  return cycles;
+}
+
+function getAvgCycle() {
+  const cycles = getCycles();
+  if (cycles.length < 2) return state.settings.avgCycle || 28;
+  const lengths = [];
+  for (let i = 1; i < cycles.length; i++) {
+    lengths.push(diffDays(cycles[i-1].start, cycles[i].start));
+  }
+  return Math.round(lengths.reduce((a,b) => a+b, 0) / lengths.length);
+}
+
+function getAvgPeriodLen() {
+  const cycles = getCycles();
+  if (!cycles.length) return 5;
+  const lens = cycles.map(c => diffDays(c.start, c.end) + 1);
+  return Math.round(lens.reduce((a,b) => a+b, 0) / lens.length);
+}
+
+function getLastCycleStart() {
+  const cycles = getCycles();
+  if (!cycles.length) return null;
+  return cycles[cycles.length - 1].start;
+}
+
+function getCurrentPhase() {
+  const last = getLastCycleStart();
+  if (!last) return null;
+  const avg = getAvgCycle();
+  const dayOfCycle = diffDays(last, today()) + 1;
+  const ovDay = Math.floor(avg / 2) - 2;
+  if (dayOfCycle <= 5) return { phase: 'menstrual', day: dayOfCycle };
+  if (dayOfCycle <= ovDay - 1) return { phase: 'follicular', day: dayOfCycle };
+  if (dayOfCycle <= ovDay + 2) return { phase: 'ovulation', day: dayOfCycle };
+  return { phase: 'luteal', day: dayOfCycle };
+}
+
+const phaseNames = {
+  menstrual: 'Менструация',
+  follicular: 'Фолликулярная фаза',
+  ovulation: 'Овуляция',
+  luteal: 'Лютеиновая фаза'
+};
+
+function updatePhaseHeader() {
+  const cycles = getCycles();
+  const last = getLastCycleStart();
+  const avg = getAvgCycle();
+  let subtitle = '';
+  let phaseClass = 'follicular';
+  let phaseText = 'Фолликулярная фаза';
+
+  if (last) {
+    const dayN = diffDays(last, today()) + 1;
+    subtitle = `День цикла ${dayN} · средний цикл ${avg} дн.`;
+    const ph = getCurrentPhase();
+    if (ph) {
+      phaseClass = ph.phase;
+      phaseText = phaseNames[ph.phase];
+    }
+  } else {
+    subtitle = 'Начните отмечать свои дни';
+  }
+  document.getElementById('header-subtitle').textContent = subtitle;
+  const badge = document.getElementById('phase-badge');
+  badge.className = 'phase-badge ' + phaseClass;
+  document.getElementById('phase-text').textContent = phaseText;
+}
+
+// ── FORECAST ─────────────────────────────────────────────────
+function getNextPeriod() {
+  const last = getLastCycleStart();
+  if (!last) return null;
+  const avg = getAvgCycle();
+  return addDays(last, avg);
+}
+
+function getNextOvulation() {
+  const next = getNextPeriod();
+  if (!next) return null;
+  const avg = getAvgCycle();
+  const last = getLastCycleStart();
+  const ovDay = Math.floor(avg / 2) - 2;
+  return addDays(last, ovDay);
+}
+
+// ── CALENDAR ─────────────────────────────────────────────────
+let calYear = today().getFullYear();
+let calMonth = today().getMonth();
+
+const weekdays = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+
+function renderCalendar() {
+  document.getElementById('cal-month-label').textContent = months[calMonth] + ' ' + calYear;
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+
+  weekdays.forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'cal-weekday';
+    el.textContent = d;
+    grid.appendChild(el);
+  });
+
+  const first = new Date(calYear, calMonth, 1);
+  let startDow = first.getDay(); // 0=Sun
+  startDow = (startDow + 6) % 7; // Mon=0
+  for (let i = 0; i < startDow; i++) {
+    const el = document.createElement('div');
+    el.className = 'cal-day empty';
+    grid.appendChild(el);
+  }
+
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const todK = todayKey();
+  const nextPeriod = getNextPeriod();
+  const nextOv = getNextOvulation();
+  const avg = getAvgCycle();
+
+  // Predicted period days
+  const predictedSet = new Set();
+  if (nextPeriod) {
+    for (let i = 0; i < 5; i++) {
+      predictedSet.add(dateKey(addDays(nextPeriod, i)));
+    }
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dt = new Date(calYear, calMonth, d);
+    const k = dateKey(dt);
+    const entry = state.days[k] || {};
+    const el = document.createElement('div');
+    el.className = 'cal-day';
+
+    if (k === todK) el.classList.add('today');
+    if ((entry.flow || 0) > 0) el.classList.add('has-period');
+    else if (predictedSet.has(k)) el.classList.add('predicted');
+
+    if (nextOv && dateKey(nextOv) === k) el.classList.add('ovulation-day');
+
+    // has symptoms
+    const hasSym = entry.mood || (entry.pain && Object.values(entry.pain).some(v => v > 0)) || Object.values(entry.chips || {}).some(Boolean);
+    if (hasSym && (entry.flow || 0) === 0) el.classList.add('has-symptoms');
+
+    el.textContent = d;
+    el.addEventListener('click', () => openDayDetail(k, d));
+    grid.appendChild(el);
+  }
+}
+
+function calPrev() {
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+}
+function calNext() {
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+}
+
+function openDayDetail(key, day) {
+  const entry = state.days[key];
+  if (!entry) { showToast('Нет данных за этот день'); return; }
+  const flowLabels = ['—','скудные','умеренные','обильные','очень обильные'];
+  const moodLabels = { great:'Отлично',calm:'Спокойно',anxious:'Тревожно',sad:'Грустно',irritable:'Раздражение',sensitive:'Чувствительно',low:'Упадок сил' };
+  let txt = `День ${day}: выделения — ${flowLabels[entry.flow||0]}`;
+  if (entry.mood) txt += `, настроение — ${moodLabels[entry.mood]||entry.mood}`;
+  showToast(txt);
+}
+
+// ── STATS ────────────────────────────────────────────────────
+function renderStats() {
+  const cycles = getCycles();
+  const avg = getAvgCycle();
+  const avgP = getAvgPeriodLen();
+
+  document.getElementById('avg-cycle').textContent = cycles.length >= 2 ? avg : '—';
+  document.getElementById('avg-period').textContent = cycles.length ? avgP : '—';
+  document.getElementById('cycles-tracked').textContent = cycles.length;
+
+  // Regularity
+  let reg = '—';
+  if (cycles.length >= 3) {
+    const lens = [];
+    for (let i = 1; i < cycles.length; i++) {
+      lens.push(diffDays(cycles[i-1].start, cycles[i].start));
+    }
+    const mean = lens.reduce((a,b) => a+b,0)/lens.length;
+    const variance = lens.reduce((a,b) => a + Math.pow(b-mean,2), 0) / lens.length;
+    const std = Math.sqrt(variance);
+    reg = std < 3 ? 'Регулярный' : std < 6 ? 'Умеренный' : 'Нерегулярный';
+  }
+  document.getElementById('regularity').textContent = reg;
+
+  // Forecast
+  const np = getNextPeriod();
+  const no = getNextOvulation();
+  if (np) {
+    document.getElementById('next-period-date').textContent = formatDate(np);
+    const dN = diffDays(today(), np);
+    document.getElementById('next-period-days').textContent = dN >= 0 ? `(через ${dN} дн.)` : '';
+  }
+  if (no) {
+    document.getElementById('next-ovulation-date').textContent = formatDate(no);
+    const dO = diffDays(today(), no);
+    document.getElementById('next-ovulation-days').textContent = dO >= 0 ? `(через ${dO} дн.)` : '';
+    // fertile window: -2..+1 from ovulation
+    const fw1 = addDays(no, -2);
+    const fw2 = addDays(no, 1);
+    document.getElementById('fertile-window').textContent = formatDate(fw1) + ' — ' + formatDate(fw2);
+  }
+
+  // Pattern chart
+  renderPatternChart();
+
+  // History
+  renderHistory(cycles);
+}
+
+function renderPatternChart() {
+  const container = document.getElementById('pattern-chart');
+  container.innerHTML = '';
+
+  const phases = ['Менструация','Фолликул.','Овуляция','Лютеин.'];
+  const colors = ['#f0b8cc','#b8d4f0','#ffe699','#c4b5e8'];
+  const allDays = Object.keys(state.days).sort();
+  const last = getLastCycleStart();
+  const avg = getAvgCycle();
+  if (!last || allDays.length === 0) {
+    container.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:8px 0">Недостаточно данных</div>';
+    return;
+  }
+
+  const phaseScores = [0,0,0,0];
+  const phaseCounts = [0,0,0,0];
+
+  allDays.forEach(k => {
+    const entry = state.days[k];
+    const dayDate = new Date(k);
+    // find which cycle start
+    const cycles = getCycles();
+    let cycleStart = null;
+    for (let i = cycles.length - 1; i >= 0; i--) {
+      if (dayDate >= cycles[i].start) { cycleStart = cycles[i].start; break; }
+    }
+    if (!cycleStart) return;
+
+    const dayN = diffDays(cycleStart, dayDate) + 1;
+    const ovDay = Math.floor(avg/2) - 2;
+    let phaseIdx = 3;
+    if (dayN <= 5) phaseIdx = 0;
+    else if (dayN <= ovDay - 1) phaseIdx = 1;
+    else if (dayN <= ovDay + 2) phaseIdx = 2;
+
+    const symptoms = Object.values(entry.chips || {}).filter(Boolean).length
+      + (entry.pain ? Object.values(entry.pain).reduce((a,b) => a + (b > 0 ? 1 : 0), 0) : 0);
+    phaseScores[phaseIdx] += symptoms;
+    phaseCounts[phaseIdx]++;
+  });
+
+  const avgs = phaseScores.map((s,i) => phaseCounts[i] ? s / phaseCounts[i] : 0);
+  const maxVal = Math.max(...avgs, 0.1);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'pattern-bar-wrap';
+
+  phases.forEach((p, i) => {
+    const col = document.createElement('div');
+    col.className = 'pattern-bar-col';
+    const bar = document.createElement('div');
+    bar.className = 'pattern-bar';
+    bar.style.background = colors[i];
+    const pct = avgs[i] / maxVal;
+    bar.style.height = Math.max(pct * 50, 2) + 'px';
+    const lbl = document.createElement('div');
+    lbl.className = 'pattern-bar-label';
+    lbl.textContent = p;
+    col.appendChild(bar);
+    col.appendChild(lbl);
+    wrap.appendChild(col);
+  });
+  container.appendChild(wrap);
+}
+
+function renderHistory(cycles) {
+  const container = document.getElementById('history-list');
+  if (!cycles.length) {
+    container.innerHTML = '<div class="empty-state"><span class="empty-icon">🌸</span>Записей пока нет. Отмечайте дни — здесь появится история.</div>';
+    return;
+  }
+  const flowLabels = ['—','скудные','умеренные','обильные','очень обильные'];
+  const moodLabels = { great:'Отлично',calm:'Спокойно',anxious:'Тревожно',sad:'Грустно',irritable:'Раздражение',sensitive:'Чувствительно',low:'Упадок сил' };
+  container.innerHTML = '';
+  [...cycles].reverse().forEach((c, idx) => {
+    const len = diffDays(c.start, c.end) + 1;
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `
+      <div class="history-item-header">
+        <div class="history-date">${formatDate(c.start)} — ${formatDate(c.end)}</div>
+        <div class="history-flow">${len} дн.</div>
+      </div>
+      <div class="history-symptoms" id="hist-sym-${idx}">Нажмите для подробностей</div>
+      <div class="history-expanded" id="hist-exp-${idx}"></div>
+    `;
+    div.addEventListener('click', () => toggleHistoryItem(div, c, idx, moodLabels, flowLabels));
+    container.appendChild(div);
+  });
+}
+
+function toggleHistoryItem(div, cycle, idx, moodLabels, flowLabels) {
+  const isOpen = div.classList.contains('open');
+  document.querySelectorAll('.history-item').forEach(h => { h.classList.remove('open'); });
+  if (!isOpen) {
+    div.classList.add('open');
+    const exp = document.getElementById('hist-exp-'+idx);
+    const allKeys = Object.keys(state.days).filter(k => {
+      const d = new Date(k);
+      return d >= cycle.start && d <= addDays(cycle.end, 1);
+    }).sort();
+    let html = '';
+    allKeys.forEach(k => {
+      const e = state.days[k];
+      const d = new Date(k);
+      const moodStr = e.mood ? moodLabels[e.mood] || e.mood : '';
+      const chips = Object.keys(e.chips || {}).filter(c => e.chips[c]).join(', ');
+      html += `<div style="margin-bottom:6px"><strong>${d.getDate()}.${String(d.getMonth()+1).padStart(2,'0')}</strong> · Выделения: ${flowLabels[e.flow||0]}${moodStr?' · '+moodStr:''}${chips?' · '+chips:''}</div>`;
+    });
+    exp.innerHTML = html || 'Нет дополнительных данных';
+  }
+}
+
+// ── EXPORT ───────────────────────────────────────────────────
+function exportData() {
+  const json = JSON.stringify(state, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'цикл_' + new Date().toLocaleDateString('ru-RU').replace(/\./g, '-') + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Данные экспортированы');
+}
+
+// ── COUNTDOWN CARD ───────────────────────────────────────────
+function renderCountdown() {
+  const np = getNextPeriod();
+  const label = document.getElementById('countdown-label');
+  const sub = document.getElementById('countdown-sub');
+  const num = document.getElementById('countdown-num');
+  const arc = document.getElementById('countdown-arc');
+  const circumference = 144.51;
+
+  if (!np) {
+    label.textContent = 'Начни отмечать дни';
+    sub.textContent = 'Прогноз появится после первых записей';
+    num.textContent = '?';
+    arc.setAttribute('stroke-dashoffset', circumference);
+    arc.setAttribute('stroke', '#c4b5e8');
+    return;
+  }
+
+  const avg = getAvgCycle();
+  const daysLeft = diffDays(today(), np);
+  const last = getLastCycleStart();
+  const dayOfCycle = diffDays(last, today()) + 1;
+
+  // Are we currently in period?
+  const currentEntry = state.days[todayKey()];
+  const inPeriod = currentEntry && (currentEntry.flow || 0) > 0;
+
+  // progress: how far through current cycle
+  const progress = Math.min(Math.max(dayOfCycle / avg, 0), 1);
+  const offset = circumference * (1 - progress);
+  arc.setAttribute('stroke-dashoffset', offset.toFixed(2));
+
+  if (inPeriod) {
+    arc.setAttribute('stroke', '#d4789a');
+    num.setAttribute('fill', '#7a3055');
+    num.textContent = dayOfCycle;
+    label.textContent = 'Идут месячные';
+    sub.textContent = 'День ' + dayOfCycle + ' цикла · средний цикл ' + avg + ' дн.';
+  } else if (daysLeft <= 0) {
+    arc.setAttribute('stroke', '#d4789a');
+    num.setAttribute('fill', '#7a3055');
+    num.textContent = '~0';
+    label.textContent = 'Месячные ожидаются сегодня';
+    sub.textContent = 'Прогноз на основе среднего цикла ' + avg + ' дн.';
+  } else if (daysLeft <= 3) {
+    arc.setAttribute('stroke', '#c07aaa');
+    num.setAttribute('fill', '#7a3055');
+    num.textContent = daysLeft;
+    label.textContent = 'Совсем скоро · ' + daysLeft + ' ' + pluralDays(daysLeft);
+    sub.textContent = formatDate(np) + ' · день цикла ' + dayOfCycle + ' из ' + avg;
+  } else {
+    arc.setAttribute('stroke', '#9478d0');
+    num.setAttribute('fill', '#4a3580');
+    num.textContent = daysLeft;
+    label.textContent = 'До месячных · ' + daysLeft + ' ' + pluralDays(daysLeft);
+    sub.textContent = 'Ожидаются ' + formatDate(np) + ' · день ' + dayOfCycle + ' из ' + avg;
+  }
+}
+
+function pluralDays(n) {
+  if (n % 10 === 1 && n % 100 !== 11) return 'день';
+  if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return 'дня';
+  return 'дней';
+}
+function checkBackupReminder() {
+  const now = new Date();
+  const monthKey = now.getFullYear() + '-' + (now.getMonth() + 1);
+  const dismissed = localStorage.getItem('backup_dismissed_' + monthKey);
+  if (dismissed) return;
+  if (now.getDate() >= 1) {
+    document.getElementById('backup-banner').classList.add('visible');
+  }
+}
+
+function dismissBackup() {
+  const now = new Date();
+  const monthKey = now.getFullYear() + '-' + (now.getMonth() + 1);
+  localStorage.setItem('backup_dismissed_' + monthKey, '1');
+  document.getElementById('backup-banner').classList.remove('visible');
+}
+
+function exportAndDismiss() {
+  exportData();
+  dismissBackup();
+}
+
+// ── IMPORT ───────────────────────────────────────────────────
+let pendingImport = null;
+
+function triggerImport() {
+  document.getElementById('import-file').value = '';
+  document.getElementById('import-file').click();
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!parsed.days) throw new Error('Неверный формат');
+      pendingImport = parsed;
+      const count = Object.keys(parsed.days).length;
+      document.getElementById('import-info').textContent =
+        'Файл содержит записи за ' + count + ' дн. из «' + file.name + '».';
+      const modal = document.getElementById('import-modal');
+      modal.style.display = 'flex';
+    } catch(err) {
+      showToast('Ошибка: не удалось прочитать файл');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function confirmImport() {
+  if (!pendingImport) return;
+  state = pendingImport;
+  pendingImport = null;
+  save();
+  document.getElementById('import-modal').style.display = 'none';
+  initTodayForm();
+  renderCalendar();
+  renderStats();
+  updatePhaseHeader();
+  renderCountdown();
+  showToast('Данные восстановлены ✓');
+}
+
+function cancelImport() {
+  pendingImport = null;
+  document.getElementById('import-modal').style.display = 'none';
+}
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+  if (name === 'calendar') renderCalendar();
+  if (name === 'stats') renderStats();
+}
+
+// ── TOAST ────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+load();
+initTodayForm();
+renderCalendar();
+renderStats();
+updatePhaseHeader();
+renderCountdown();
+checkBackupReminder();
+</script>
+</body>
+</html>
